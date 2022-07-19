@@ -1,0 +1,73 @@
+---
+title: "prueba"
+output: html_document
+date: '2022-07-19'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(caret)
+library(bnclassify)
+library(pROC)
+library(randomForest)
+rm(list = ls())
+```
+
+```{r}
+library(readxl)
+df <- read_excel("/Users/parod/OneDrive/Escritorio/dataset_try.xlsx")
+```
+
+```{r}
+data_model<-df[,-1]
+#todas son categoricas
+data_model<-lapply(data_model,as.factor)
+data_model<-as.data.frame(data_model)
+```
+
+```{r}
+var.model <- setdiff(colnames(data_model),c("Class"))
+x<-data_model[,var.model]
+y<-as.factor(data_model$Class)
+
+set.seed(666)
+#Configuramos proceso entrenamiento
+fitControl <- trainControl(method = "repeatedcv",
+                           number=5, repeats=10,
+                           classProbs = TRUE,
+                           summaryFunction = twoClassSummary,
+                           verbose=F)
+
+#Preparamos el barrido de hiperparámetros del modelo TAN
+tune.grid <- expand.grid(smooth=10^seq(-1,2,0.2),
+                         score=c('bic', 'aic'))
+
+#Proceso de 5-repeated+2-crossvalidation
+alldata.tan <- caret::train(x,y,
+                          method = "tan", 
+                          trControl = fitControl,
+                          tuneGrid = tune.grid,
+                          metric = "ROC",
+                          maximize=TRUE
+)
+
+alldata.tan$bestTune
+
+ggplot(data=alldata.tan$results,aes(x=smooth,y=ROC,color=score))+
+  geom_point(size=2, shape=21) + # 21 is filled circle
+  geom_line()+
+  geom_errorbar(aes(ymin=ROC-ROCSD/2, ymax=ROC+ROCSD/2), width=.05, alpha=0.5)+
+  scale_x_continuous(trans='log10')
+```
+
+
+
